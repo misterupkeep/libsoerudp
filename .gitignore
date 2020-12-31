@@ -1,0 +1,5 @@
+.ccls-cache
+result
+bin/*.so
+bin/*.dll
+obj/*.o
