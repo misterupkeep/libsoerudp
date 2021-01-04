@@ -15,7 +15,7 @@ objs = $(subst $(src_dir),$(obj_dir),$(srcs:.c=.o))
 
 all: $(bin_dir)/$(lib_name)
 
-CFLAGS = -I$(include_dir) -fPIC
+CFLAGS = -I$(include_dir) -fPIC -lzlib
 $(bin_dir)/$(lib_name): $(objs)
 	cc -shared -o $@ $(CFLAGS) $(objs)
 

@@ -2,6 +2,8 @@ with import <nixpkgs> {};
 stdenv.mkDerivation {
   name = "libsoerudp-0.1";
 
+  buildInputs = [ zlib ];
+
   src = ./.;
 
   installPhase = ''
