@@ -154,8 +154,8 @@ typedef struct {
 
 	uint32_t total_sz;
 	/**< Total size of the reassembled data. Only present in the
-	 * first fragmented packet in a series. First word after
-	 * #seq_num */
+	 * first fragmented packet in a series (will be 0 otherwise).
+	 * First word after #seq_num */
 
 	uint16_t crc;
 	/**< CRC checksum */
@@ -167,6 +167,9 @@ typedef struct {
 
 	size_t _data_sz;
 	/**< Not part of packet. Size of #data buffer. */
+
+	size_t _start_index;
+	/**< Not part of packet. Used by #parse_multi_packet(). */
 
 	uint8_t *data;
 	/**< Sent data */
@@ -210,9 +213,20 @@ soe_crc32(uint32_t crc_seed, const uint8_t data[], size_t len);
  * @param buf The buffer from which to read
  * @param len Size of #buf
  * @param crc_seed CRC seed used for data checksum validation
+ * @param initial_packet Whether this would be the first fragmented data packet received (in a series).
  * @return Pointer to parsed packet. NULL if no packet could be parsed.
+ * @see parse_multi_packet()
  */
-soe_rudp_packet*
-parse_packet(const uint8_t buf[], size_t len, uint32_t crc_seed);
+soe_rudp_packet *
+parse_packet(const uint8_t buf[], size_t len, uint32_t crc_seed, uint8_t initial_packet);
+
+/** Parse out a single packet from a group of packets.
+ * Repeated calls parse subsequent packets.
+ * @param packet The grouped data packet from which to parse
+ * @returns Pointer to a parsed packet, or NULL if none left, or if cannot parse
+ * @see parse_packet()
+ */
+soe_rudp_packet *
+parse_multi_packet(soe_multi_packet *packet, uint8_t initial_packet);
 
 #endif
