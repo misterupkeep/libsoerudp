@@ -113,7 +113,7 @@ __SOE_LOCAL
 soe_data_packet *
 parse_data_packet_multi(const uint8_t buf[], size_t len)
 {
-	soe_data_packet *data = malloc(sizeof(soe_session_request));
+	soe_data_packet *data = malloc(sizeof(soe_data_packet));
 	if(data == NULL) return NULL;
 
 	data->_has_zflag_crc = 0;
@@ -169,7 +169,7 @@ __SOE_LOCAL
 soe_data_packet *
 parse_data_packet(const uint8_t buf[], size_t len, uint32_t crc_seed)
 {
-	soe_data_packet *data = malloc(sizeof(soe_session_request));
+	soe_data_packet *data = malloc(sizeof(soe_data_packet));
 	if(data == NULL) return NULL;
 
 	data->_has_zflag_crc = 1;
@@ -194,13 +194,13 @@ parse_fragmented_packet_multi(const uint8_t buf[], size_t len, int initial_packe
 	soe_fragment_packet *fragment = malloc(sizeof(soe_fragment_packet));
 	if(fragment == NULL) return NULL;
 
-	fragment->_has_zflag_crc = 1;
+	fragment->_has_zflag_crc = 0;
 
 	fragment->seq_num = n16(buf, 2);
 
 	fragment->_data_sz = len - 4;
 	fragment->data = malloc(fragment->_data_sz);
-	if(fragment->data) goto packet_free;
+	if(fragment->data == NULL) goto packet_free;
 
 	memcpy(fragment->data, buf + 4, fragment->_data_sz);
 
