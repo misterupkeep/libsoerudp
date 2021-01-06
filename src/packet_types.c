@@ -59,26 +59,26 @@ soe_session_request *
 parse_session_request(const uint8_t buf[], size_t len)
 {
 	/* Invalid by virtue of being too short */
-	if(len <= 13) return NULL;
+	if(len <= 15) return NULL;
 
 	soe_session_request *req = malloc(sizeof(soe_session_request));
 	if(req == NULL) return NULL;
 
-	req->crc_length = n32(buf, 0);
+	req->crc_length = n32(buf, 2);
 
 	/* The connection ID is useless;
 	   no need to swap endianness. */
-	req->conn_id = h32(buf, 4);
+	req->conn_id = h32(buf, 6);
 
-	req->buf_size = n32(buf, 8);
+	req->buf_size = n32(buf, 10);
 
-	size_t version_str_sz = len - 12;
+	size_t version_str_sz = len - 14;
 	req->version = malloc(version_str_sz);
 	if(req->version == NULL) {
 		free(req);
 		return NULL;
 	}
-	strcpy(req->version, (char *)buf + 12);
+	strcpy(req->version, (char *)buf + 14);
 
 	return req;
 }
@@ -88,21 +88,21 @@ soe_session_reply *
 parse_session_reply(const uint8_t buf[], size_t len)
 {
 	/* Invalid by virtue of being too short */
-	if(len <= 18) return NULL;
+	if(len <= 20) return NULL;
 
 	soe_session_reply *res = malloc(sizeof(soe_session_reply));
 	if(res == NULL) return NULL;
 
 	/* The connection ID is useless;
 	   no need to swap endianness. */
-	res->conn_id = h32(buf, 0);
+	res->conn_id = h32(buf, 2);
 
-	res->crc_seed = n32(buf, 4);
-	res->crc_length = *(buf + 8);
-	res->zflag = *(buf + 9);
-	res->enc_flag = *(buf + 10);
-	res->buf_size = n32(buf, 11);
-	res->footer = n32(buf, 15);
+	res->crc_seed = n32(buf, 6);
+	res->crc_length = *(buf + 10);
+	res->zflag = *(buf + 12);
+	res->enc_flag = *(buf + 13);
+	res->buf_size = n32(buf, 14);
+	res->footer = n32(buf, 18);
 
 	return res;
 }
@@ -118,17 +118,17 @@ parse_data_packet_multi(const uint8_t buf[], size_t len)
 
 	data->_has_zflag_crc = 0;
 
-	/* Everything is data except starting seq_num short */
-	data->_data_sz = len - 2;
+	/* Everything is data except starting opcode and seq_num short */
+	data->_data_sz = len - 4;
 
-	data->data = malloc(len);
+	data->data = malloc(data->_data_sz);
 	if(data->data == NULL) goto packet_free;
-	memcpy(data->data, buf + 2, data->_data_sz);
+	memcpy(data->data, buf + 4, data->_data_sz);
 
 	/* Would have been already compressed if inside SOE_MULTI_SOE */
 	data->zflag = 0;
 
-	data->seq_num = n16(buf, 0);
+	data->seq_num = n16(buf, 2);
 
 	return data;
 
@@ -143,7 +143,7 @@ packet_free:
  * sets _data_sz
  */
 #define DATA_PACKET_UNCOMPRESS_BOILERPLATE(p)				\
-	p->zflag = *buf;						\
+	p->zflag = *(buf+2);						\
 	p->crc = n16(buf, len - 2);					\
 									\
         uint16_t calculated_crc = soe_crc32(crc_seed, buf, len - 2) & 0xFFFF; \
@@ -151,17 +151,17 @@ packet_free:
 									\
 	size_t data_sz;							\
 	if(p->zflag) data_sz = 512;					\
-	else p->_data_sz = data_sz = len - 3;				\
+	else p->_data_sz = data_sz = len - 5;				\
 									\
 	p->data = malloc(data_sz);					\
 	if(p->data == NULL) goto packet_free;				\
 									\
 	if (p->zflag) {							\
-		int err = uncompress(p->data, &data_sz, buf + 1, len - 3); \
+		int err = uncompress(p->data, &data_sz, buf + 3, data_sz); \
 		if (err != Z_OK) goto data_free;			\
 		p->_data_sz = data_sz;					\
 	} else {							\
-		memcpy(p->data, buf + 1, len - 3);			\
+		memcpy(p->data, buf + 3, data_sz);			\
 	}
 
 
@@ -196,13 +196,13 @@ parse_fragmented_packet_multi(const uint8_t buf[], size_t len, int initial_packe
 
 	fragment->_has_zflag_crc = 1;
 
-	fragment->seq_num = n16(buf, 0);
+	fragment->seq_num = n16(buf, 2);
 
-	fragment->_data_sz = len - 2;
+	fragment->_data_sz = len - 4;
 	fragment->data = malloc(fragment->_data_sz);
 	if(fragment->data) goto packet_free;
 
-	memcpy(fragment->data, buf + 2, fragment->_data_sz);
+	memcpy(fragment->data, buf + 4, fragment->_data_sz);
 
 	if(initial_packet) {
 		fragment->total_sz = n32(fragment->data, 2);
@@ -275,7 +275,7 @@ parse_ack_out_order_multi(const uint8_t buf[], size_t len)
 
 	ack_out_order->_has_zflag_crc = 0;
 
-	ack_out_order->seq_num = n16(buf, 0);
+	ack_out_order->seq_num = n16(buf, 2);
 
 	return ack_out_order;
 }
@@ -288,9 +288,9 @@ parse_ack_out_order(const uint8_t buf[], size_t len, uint32_t crc_seed)
 	if(ack_out_order == NULL) return NULL;
 
 	ack_out_order->_has_zflag_crc = 1;
-	ack_out_order->zflag = *buf;
-	ack_out_order->seq_num = n16(buf, 1);
-	ack_out_order->crc = n16(buf, 3);
+	ack_out_order->zflag = *(buf + 2);
+	ack_out_order->seq_num = n16(buf, 3);
+	ack_out_order->crc = n16(buf, 5);
 
 	uint16_t calculated_crc = soe_crc32(crc_seed, buf, len - 2) & 0xFFFF;
 	if(ack_out_order->crc != calculated_crc) {
@@ -302,7 +302,7 @@ parse_ack_out_order(const uint8_t buf[], size_t len, uint32_t crc_seed)
 }
 
 #define PACKET_HANDLER_CALL(f, ...) {					\
-		void *_ptr = f(buf + 2, len - 2, ##__VA_ARGS__);	\
+		void *_ptr = f(buf, len, ##__VA_ARGS__);	\
 		if(_ptr == NULL) goto packet_free;			\
 		packet->data = _ptr;					\
 	}
