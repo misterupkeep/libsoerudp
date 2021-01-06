@@ -1,4 +1,4 @@
-with import <nixpkgs> {};
+{ stdenv, zlib }:
 stdenv.mkDerivation {
   name = "libsoerudp-0.1";
 
