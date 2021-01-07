@@ -1,0 +1,46 @@
+				   libsoerudp
+
+	 An implementation of Sony Online Entertainment's Reliable UDP
+		    (layer 7) protocol version `CGAPI_527'.
+
+While similar between revisions, it should be noted that this implementation
+applies only to protocol version `CGAPI_527'.
+
+The SOE RUDP protocol is a layer 7 transport protocol intended for sending data
+reliably over UDP. Its main features are support for gzip compression, stream
+reconstruction (referred to as data fragmentation) and multi channel support.
+
+Although it might seem enticing to use in your project, this is an obsolete
+protocol, abandoned by its original creators, and will receive no 'updates'. A
+fork that enhances its performance or otherwise improves it is welcome, but
+alternatives (such as TCP) might be more rewarding.
+
+## Building ####################################################################
+
+Running `make' should suffice. The target `debug` is also present. The outputs
+and relevant files are located in folders named by GNU convention. Simply copy
+over the relevant binaries and/or headers to the appropriate folders on your
+system.
+
+For those using Nix, they can use `default.nix' to derive libsoerudp, which is
+written in 'callPackage' style (i.e. a lambda taking build inputs). Evaluating
+`nixpkgs.lib.callPackageWith nixpkgs /path/to/libsoerudp {};` should derive
+correctly.
+
+Alternatively, instead of hosting a local copy of nixpkgs, users can write a
+file such as:
+
+-- default.nix -----------------------------------------------------------------
+{ system ? builtins.currentSystem }:
+let
+  pkgs = import <nixpkgs> { inherit system; };
+  callPackage = pkgs.lib.callPackageWith (pkgs // self);
+  self = {
+    libsoerudp = callPackage ./pkgs/libsoerudp { };
+  };
+in self
+--------------------------------------------------------------------------------
+
+whose parent folder should be on the NIX_PATH. This allows commands such as
+`nix-env -f <mypkgs> -iA libsoerudp' to correctly resolve, derive, and add to
+the environment.
